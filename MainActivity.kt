@@ -13,11 +13,10 @@ import androidx.core.content.ContextCompat
 class MainActivity : Activity() {
 
     private lateinit var statusText: TextView
+    private val requestCode = 10
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        requestPermissionsIfNeeded()
 
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -26,26 +25,46 @@ class MainActivity : Activity() {
 
         statusText = TextView(this).apply {
             textSize = 18f
-            text = "Smart Hold Test\n\nUse speakerphone for this first test."
+            text = "Smart Hold Test\n\nGrant permissions first. Use speakerphone for this test."
+        }
+
+        val permissionButton = Button(this).apply {
+            text = "Grant Permissions"
+            setOnClickListener {
+                requestPermissionsIfNeeded()
+            }
         }
 
         val startButton = Button(this).apply {
             text = "Start Smart Hold"
             setOnClickListener {
-                requestPermissionsIfNeeded()
-                ContextCompat.startForegroundService(
-                    this@MainActivity,
-                    Intent(this@MainActivity, HoldMonitorService::class.java)
-                )
-                statusText.text = "Smart Hold is active. Put the call on speakerphone."
+                if (!hasAudioPermission()) {
+                    statusText.text = "Microphone permission is required first."
+                    requestPermissionsIfNeeded()
+                    return@setOnClickListener
+                }
+
+                try {
+                    ContextCompat.startForegroundService(
+                        this@MainActivity,
+                        Intent(this@MainActivity, HoldMonitorService::class.java)
+                    )
+                    statusText.text = "Smart Hold active. Put the call on speakerphone."
+                } catch (e: Exception) {
+                    statusText.text = "Could not start service:\n${e.message}"
+                }
             }
         }
 
         val stopButton = Button(this).apply {
             text = "Stop Smart Hold"
             setOnClickListener {
-                stopService(Intent(this@MainActivity, HoldMonitorService::class.java))
-                statusText.text = "Smart Hold stopped."
+                try {
+                    stopService(Intent(this@MainActivity, HoldMonitorService::class.java))
+                    statusText.text = "Smart Hold stopped."
+                } catch (e: Exception) {
+                    statusText.text = "Could not stop service:\n${e.message}"
+                }
             }
         }
 
@@ -64,6 +83,7 @@ class MainActivity : Activity() {
         }
 
         layout.addView(statusText)
+        layout.addView(permissionButton)
         layout.addView(startButton)
         layout.addView(stopButton)
         layout.addView(stillOnHoldButton)
@@ -72,24 +92,27 @@ class MainActivity : Activity() {
         setContentView(layout)
     }
 
+    private fun hasAudioPermission(): Boolean {
+        return checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+    }
+
     private fun requestPermissionsIfNeeded() {
         val permissions = mutableListOf<String>()
 
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
-            != PackageManager.PERMISSION_GRANTED
-        ) {
+        if (!hasAudioPermission()) {
             permissions.add(Manifest.permission.RECORD_AUDIO)
         }
 
         if (android.os.Build.VERSION.SDK_INT >= 33 &&
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
-            != PackageManager.PERMISSION_GRANTED
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) {
             permissions.add(Manifest.permission.POST_NOTIFICATIONS)
         }
 
         if (permissions.isNotEmpty()) {
-            requestPermissions(permissions.toTypedArray(), 10)
+            requestPermissions(permissions.toTypedArray(), requestCode)
+        } else {
+            statusText.text = "Permissions already granted."
         }
     }
 }
