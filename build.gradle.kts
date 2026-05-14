@@ -18,7 +18,7 @@ android {
     sourceSets {
         getByName("main") {
             manifest.srcFile("AndroidManifest.xml")
-            java.srcDirs(".")
+            java.srcDirs("generated-src")
         }
     }
 }
