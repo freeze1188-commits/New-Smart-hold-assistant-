@@ -1,14 +1,13 @@
 package com.freeze1188.smarthold
 
 import android.Manifest
+import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.app.Activity
-import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 
 class MainActivity : Activity() {
@@ -27,7 +26,7 @@ class MainActivity : Activity() {
 
         statusText = TextView(this).apply {
             textSize = 18f
-            text = "Smart Hold Test\n\nFlat project version.\n\nUse speakerphone for the first test."
+            text = "Smart Hold Test\n\nUse speakerphone for this first test."
         }
 
         val startButton = Button(this).apply {
@@ -38,7 +37,7 @@ class MainActivity : Activity() {
                     this@MainActivity,
                     Intent(this@MainActivity, HoldMonitorService::class.java)
                 )
-                statusText.text = "Smart Hold is active. Put call on speakerphone."
+                statusText.text = "Smart Hold is active. Put the call on speakerphone."
             }
         }
 
@@ -53,14 +52,14 @@ class MainActivity : Activity() {
         val stillOnHoldButton = Button(this).apply {
             text = "Still On Hold"
             setOnClickListener {
-                statusText.text = "Feedback saved locally for this test: still on hold."
+                statusText.text = "Feedback: still on hold."
             }
         }
 
         val correctButton = Button(this).apply {
             text = "Detected Correctly"
             setOnClickListener {
-                statusText.text = "Feedback saved locally for this test: detected correctly."
+                statusText.text = "Feedback: detected correctly."
             }
         }
 
@@ -90,7 +89,7 @@ class MainActivity : Activity() {
         }
 
         if (permissions.isNotEmpty()) {
-            ActivityCompat.requestPermissions(this, permissions.toTypedArray(), 10)
+            requestPermissions(permissions.toTypedArray(), 10)
         }
     }
 }
