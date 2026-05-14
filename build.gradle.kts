@@ -8,10 +8,10 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.freeze1188.smarthold"
+        applicationId = "com.freeze1188.smartholdtest2"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
+        versionCode = 3
         versionName = "0.2-open-test"
     }
 
