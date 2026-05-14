@@ -11,8 +11,8 @@ android {
         applicationId = "com.freeze1188.smarthold"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1-flat-test"
+        versionCode = 2
+        versionName = "0.2-open-test"
     }
 
     sourceSets {
@@ -21,8 +21,4 @@ android {
             java.srcDirs("generated-src")
         }
     }
-}
-
-dependencies {
-    implementation("androidx.core:core-ktx:1.15.0")
 }
