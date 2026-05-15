@@ -1,26 +1,4 @@
-name: Build Android APK
-
-on:
-  workflow_dispatch:
-  push:
-    branches:
-      - main
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout project
-        uses: actions/checkout@v4
-
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
-
-      - name: Set up Gradle
+- name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
       - name: Prepare source folder
@@ -28,6 +6,7 @@ jobs:
           rm -rf generated-src
           mkdir -p generated-src/com/freeze1188/smarthold
           cp MainActivity.java generated-src/com/freeze1188/smarthold/MainActivity.java
+          cp HoldMonitorService.java generated-src/com/freeze1188/smarthold/HoldMonitorService.java
 
       - name: Build debug APK
         run: gradle assembleDebug
