@@ -23,11 +23,11 @@ public class MainActivity extends Activity {
     private static final String CHANNEL_ID = "smart_hold_alerts";
     private static final int SAMPLE_RATE = 16000;
 
-    // Tuning values
-    private static final int MIN_VOLUME = 700;
-    private static final int MIN_VARIATION = 350;
-    private static final int REQUIRED_HITS = 6;
-    private static final int ALERT_COOLDOWN_MS = 12000;
+    // Easier detection settings
+    private static final int MIN_VOLUME = 300;
+    private static final int MIN_VARIATION = 120;
+    private static final int REQUIRED_HITS = 3;
+    private static final int ALERT_COOLDOWN_MS = 8000;
 
     private boolean monitoring = false;
     private AudioRecord recorder;
@@ -59,6 +59,7 @@ public class MainActivity extends Activity {
         Button startButton = new Button(this);
         startButton.setText("Start Smart Hold");
         startButton.setOnClickListener(v -> {
+
             if (!hasMicPermission()) {
                 statusText.setText("Microphone permission needed first.");
                 requestNeededPermissions();
@@ -92,6 +93,7 @@ public class MainActivity extends Activity {
     }
 
     private boolean hasNotificationPermission() {
+
         if (android.os.Build.VERSION.SDK_INT < 33) {
             return true;
         }
@@ -101,7 +103,9 @@ public class MainActivity extends Activity {
     }
 
     private void requestNeededPermissions() {
+
         if (android.os.Build.VERSION.SDK_INT >= 33) {
+
             requestPermissions(
                     new String[]{
                             Manifest.permission.RECORD_AUDIO,
@@ -109,7 +113,9 @@ public class MainActivity extends Activity {
                     },
                     100
             );
+
         } else {
+
             requestPermissions(
                     new String[]{
                             Manifest.permission.RECORD_AUDIO
@@ -120,6 +126,7 @@ public class MainActivity extends Activity {
     }
 
     private void startMonitoring() {
+
         if (monitoring) {
             statusText.setText("Already monitoring.");
             return;
@@ -154,31 +161,45 @@ public class MainActivity extends Activity {
         statusText.setText("Monitoring...\n\nListening for speech-like changes.");
 
         monitorThread = new Thread(() -> {
+
             short[] buffer = new short[bufferSize];
 
             while (monitoring) {
+
                 int read = recorder.read(buffer, 0, buffer.length);
 
                 if (read > 0) {
+
                     int volume = calculateAverageVolume(buffer, read);
 
                     if (rollingBaseline == 0) {
                         rollingBaseline = volume;
                     } else {
-                        rollingBaseline = (rollingBaseline * 9 + volume) / 10;
+                        rollingBaseline =
+                                (rollingBaseline * 9 + volume) / 10;
                     }
 
-                    int variation = Math.abs(volume - lastVolume);
-                    int jumpFromBaseline = Math.abs(volume - rollingBaseline);
+                    int variation =
+                            Math.abs(volume - lastVolume);
 
-                    boolean loudEnough = volume > MIN_VOLUME;
-                    boolean changingEnough = variation > MIN_VARIATION || jumpFromBaseline > MIN_VARIATION;
-                    boolean speechLike = loudEnough && changingEnough;
+                    int jumpFromBaseline =
+                            Math.abs(volume - rollingBaseline);
+
+                    boolean loudEnough =
+                            volume > MIN_VOLUME;
+
+                    boolean changingEnough =
+                            variation > MIN_VARIATION ||
+                            jumpFromBaseline > MIN_VARIATION;
+
+                    boolean speechLike =
+                            loudEnough && changingEnough;
 
                     if (speechLike) {
                         speechLikeHits++;
                     } else {
-                        speechLikeHits = Math.max(0, speechLikeHits - 1);
+                        speechLikeHits =
+                                Math.max(0, speechLikeHits - 1);
                     }
 
                     lastVolume = volume;
@@ -191,10 +212,11 @@ public class MainActivity extends Activity {
                     runOnUiThread(() ->
                             statusText.setText(
                                     "Monitoring...\n\n" +
-                                            "Volume: " + finalVolume + "\n" +
-                                            "Baseline: " + finalBaseline + "\n" +
-                                            "Variation: " + finalVariation + "\n" +
-                                            "Speech hits: " + finalHits + " / " + REQUIRED_HITS
+                                    "Volume: " + finalVolume + "\n" +
+                                    "Baseline: " + finalBaseline + "\n" +
+                                    "Variation: " + finalVariation + "\n" +
+                                    "Speech hits: " + finalHits +
+                                    " / " + REQUIRED_HITS
                             )
                     );
 
@@ -207,7 +229,9 @@ public class MainActivity extends Activity {
                         speechLikeHits = 0;
 
                         runOnUiThread(() -> {
+
                             showAlertNotification();
+
                             statusText.setText(
                                     "Possible speech detected.\n\nCheck your call."
                             );
@@ -221,76 +245,99 @@ public class MainActivity extends Activity {
     }
 
     private void stopMonitoring() {
+
         monitoring = false;
 
         try {
+
             if (recorder != null) {
                 recorder.stop();
                 recorder.release();
                 recorder = null;
             }
+
         } catch (Exception ignored) {
         }
 
-        NotificationManager manager = getSystemService(NotificationManager.class);
+        NotificationManager manager =
+                getSystemService(NotificationManager.class);
+
         manager.cancel(1);
 
         statusText.setText("Smart Hold stopped.");
     }
 
     private int calculateAverageVolume(short[] buffer, int read) {
+
         long sum = 0;
 
         for (int i = 0; i < read; i++) {
             sum += Math.abs(buffer[i]);
         }
 
-        return (int) (sum / read);
+        return (int)(sum / read);
     }
 
     private void createNotificationChannel() {
-        Uri soundUri = android.provider.Settings.System.DEFAULT_NOTIFICATION_URI;
+
+        Uri soundUri =
+                android.provider.Settings.System.DEFAULT_NOTIFICATION_URI;
 
         AudioAttributes audioAttributes =
                 new AudioAttributes.Builder()
                         .setUsage(AudioAttributes.USAGE_NOTIFICATION)
                         .build();
 
-        NotificationChannel channel = new NotificationChannel(
-                CHANNEL_ID,
-                "Smart Hold Alerts",
-                NotificationManager.IMPORTANCE_HIGH
-        );
+        NotificationChannel channel =
+                new NotificationChannel(
+                        CHANNEL_ID,
+                        "Smart Hold Alerts",
+                        NotificationManager.IMPORTANCE_HIGH
+                );
 
         channel.enableVibration(true);
-        channel.setVibrationPattern(new long[]{0, 500, 300, 500});
+        channel.setVibrationPattern(
+                new long[]{0, 500, 300, 500}
+        );
+
         channel.enableLights(true);
         channel.setSound(soundUri, audioAttributes);
 
-        NotificationManager manager = getSystemService(NotificationManager.class);
+        NotificationManager manager =
+                getSystemService(NotificationManager.class);
+
         manager.createNotificationChannel(channel);
     }
 
     private void showAlertNotification() {
+
         Notification notification =
                 new Notification.Builder(this, CHANNEL_ID)
                         .setContentTitle("Possible speech detected")
                         .setContentText("Check your call now.")
                         .setStyle(
                                 new Notification.BigTextStyle()
-                                        .bigText("Possible speech-like audio detected.\n\nCheck your call now.")
+                                        .bigText(
+                                                "Possible speech-like audio detected.\n\nCheck your call now."
+                                        )
                         )
-                        .setSmallIcon(android.R.drawable.ic_dialog_alert)
+                        .setSmallIcon(
+                                android.R.drawable.ic_dialog_alert
+                        )
                         .setAutoCancel(true)
                         .build();
 
-        NotificationManager manager = getSystemService(NotificationManager.class);
+        NotificationManager manager =
+                getSystemService(NotificationManager.class);
+
         manager.notify(1, notification);
     }
 
     @Override
     protected void onDestroy() {
+
         stopMonitoring();
+
         super.onDestroy();
     }
 }
