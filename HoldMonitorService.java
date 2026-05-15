@@ -14,14 +14,22 @@ public class HoldMonitorService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-        createNotificationChannel();
+
+        NotificationChannel channel = new NotificationChannel(
+                CHANNEL_ID,
+                "Smart Hold Status",
+                NotificationManager.IMPORTANCE_LOW
+        );
+
+        NotificationManager manager = getSystemService(NotificationManager.class);
+        manager.createNotificationChannel(channel);
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Notification notification = new Notification.Builder(this, CHANNEL_ID)
                 .setContentTitle("Smart Hold active")
-                .setContentText("Monitoring is running in the background.")
+                .setContentText("Monitoring service is running.")
                 .setSmallIcon(android.R.drawable.ic_btn_speak_now)
                 .setOngoing(true)
                 .build();
@@ -40,16 +48,5 @@ public class HoldMonitorService extends Service {
     @Override
     public IBinder onBind(Intent intent) {
         return null;
-    }
-
-    private void createNotificationChannel() {
-        NotificationChannel channel = new NotificationChannel(
-                CHANNEL_ID,
-                "Smart Hold Status",
-                NotificationManager.IMPORTANCE_LOW
-        );
-
-        NotificationManager manager = getSystemService(NotificationManager.class);
-        manager.createNotificationChannel(channel);
     }
 }
