@@ -1,6 +1,5 @@
 plugins {
     id("com.android.application") version "8.7.3"
-    id("org.jetbrains.kotlin.android") version "2.0.21"
 }
 
 android {
@@ -8,11 +7,11 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.freeze1188.smartholdtest2"
+        applicationId = "com.freeze1188.smartholdjava"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "0.2-open-test"
+        versionCode = 10
+        versionName = "1.0-java-test"
     }
 
     sourceSets {
