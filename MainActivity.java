@@ -6,6 +6,8 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.pm.PackageManager;
+import android.media.AudioAttributes;
+import android.net.Uri;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.LinearLayout;
@@ -14,7 +16,7 @@ import android.widget.TextView;
 public class MainActivity extends Activity {
 
     private TextView statusText;
-    private static final String CHANNEL_ID = "smart_hold_status";
+    private static final String CHANNEL_ID = "smart_hold_alerts";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,6 +39,7 @@ public class MainActivity extends Activity {
         Button startButton = new Button(this);
         startButton.setText("Start Smart Hold");
         startButton.setOnClickListener(v -> {
+
             if (!hasMicPermission()) {
                 statusText.setText("Microphone permission needed first.");
                 requestNeededPermissions();
@@ -49,8 +52,9 @@ public class MainActivity extends Activity {
                 return;
             }
 
-            showSmartHoldNotification();
-            statusText.setText("Smart Hold started. Check notification bar.");
+            showAlertNotification();
+
+            statusText.setText("ALERT notification sent.");
         });
 
         Button stopButton = new Button(this);
@@ -58,7 +62,7 @@ public class MainActivity extends Activity {
         stopButton.setOnClickListener(v -> {
             NotificationManager manager = getSystemService(NotificationManager.class);
             manager.cancel(1);
-            statusText.setText("Smart Hold stopped.");
+            statusText.setText("Notification removed.");
         });
 
         layout.addView(statusText);
@@ -75,6 +79,7 @@ public class MainActivity extends Activity {
     }
 
     private boolean hasNotificationPermission() {
+
         if (android.os.Build.VERSION.SDK_INT < 33) {
             return true;
         }
@@ -84,7 +89,9 @@ public class MainActivity extends Activity {
     }
 
     private void requestNeededPermissions() {
+
         if (android.os.Build.VERSION.SDK_INT >= 33) {
+
             requestPermissions(
                     new String[]{
                             Manifest.permission.RECORD_AUDIO,
@@ -92,7 +99,9 @@ public class MainActivity extends Activity {
                     },
                     100
             );
+
         } else {
+
             requestPermissions(
                     new String[]{
                             Manifest.permission.RECORD_AUDIO
@@ -103,25 +112,51 @@ public class MainActivity extends Activity {
     }
 
     private void createNotificationChannel() {
+
+        Uri soundUri =
+                android.provider.Settings.System.DEFAULT_NOTIFICATION_URI;
+
+        AudioAttributes audioAttributes =
+                new AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                        .build();
+
         NotificationChannel channel = new NotificationChannel(
                 CHANNEL_ID,
-                "Smart Hold Status",
-                NotificationManager.IMPORTANCE_LOW
+                "Smart Hold Alerts",
+                NotificationManager.IMPORTANCE_HIGH
         );
 
-        NotificationManager manager = getSystemService(NotificationManager.class);
+        channel.enableVibration(true);
+        channel.setVibrationPattern(new long[]{0, 500, 300, 500});
+        channel.enableLights(true);
+        channel.setSound(soundUri, audioAttributes);
+
+        NotificationManager manager =
+                getSystemService(NotificationManager.class);
+
         manager.createNotificationChannel(channel);
     }
 
-    private void showSmartHoldNotification() {
-        Notification notification = new Notification.Builder(this, CHANNEL_ID)
-                .setContentTitle("Smart Hold active")
-                .setContentText("Test notification is working.")
-                .setSmallIcon(android.R.drawable.ic_btn_speak_now)
-                .setOngoing(true)
-                .build();
+    private void showAlertNotification() {
 
-        NotificationManager manager = getSystemService(NotificationManager.class);
+        Notification notification =
+                new Notification.Builder(this, CHANNEL_ID)
+                        .setContentTitle("CALL DETECTED")
+                        .setContentText("Potential human voice detected.")
+                        .setStyle(
+                                new Notification.BigTextStyle()
+                                        .bigText(
+                                                "Potential human voice detected.\n\nReturn to your call now."
+                                        )
+                        )
+                        .setSmallIcon(android.R.drawable.ic_dialog_alert)
+                        .setAutoCancel(true)
+                        .build();
+
+        NotificationManager manager =
+                getSystemService(NotificationManager.class);
+
         manager.notify(1, notification);
     }
 }
