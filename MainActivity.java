@@ -22,12 +22,21 @@ public class MainActivity extends Activity {
 
     private static final String CHANNEL_ID = "smart_hold_alerts";
     private static final int SAMPLE_RATE = 16000;
-    private static final int VOLUME_TRIGGER = 1800;
+
+    // Tuning values
+    private static final int MIN_VOLUME = 700;
+    private static final int MIN_VARIATION = 350;
+    private static final int REQUIRED_HITS = 6;
+    private static final int ALERT_COOLDOWN_MS = 12000;
 
     private boolean monitoring = false;
     private AudioRecord recorder;
     private Thread monitorThread;
     private long lastAlertTime = 0;
+
+    private int speechLikeHits = 0;
+    private int lastVolume = 0;
+    private int rollingBaseline = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -136,9 +145,13 @@ public class MainActivity extends Activity {
         );
 
         monitoring = true;
+        speechLikeHits = 0;
+        lastVolume = 0;
+        rollingBaseline = 0;
+
         recorder.startRecording();
 
-        statusText.setText("Monitoring microphone...\n\nMake sound or talk to test.");
+        statusText.setText("Monitoring...\n\nListening for speech-like changes.");
 
         monitorThread = new Thread(() -> {
             short[] buffer = new short[bufferSize];
@@ -149,18 +162,55 @@ public class MainActivity extends Activity {
                 if (read > 0) {
                     int volume = calculateAverageVolume(buffer, read);
 
+                    if (rollingBaseline == 0) {
+                        rollingBaseline = volume;
+                    } else {
+                        rollingBaseline = (rollingBaseline * 9 + volume) / 10;
+                    }
+
+                    int variation = Math.abs(volume - lastVolume);
+                    int jumpFromBaseline = Math.abs(volume - rollingBaseline);
+
+                    boolean loudEnough = volume > MIN_VOLUME;
+                    boolean changingEnough = variation > MIN_VARIATION || jumpFromBaseline > MIN_VARIATION;
+                    boolean speechLike = loudEnough && changingEnough;
+
+                    if (speechLike) {
+                        speechLikeHits++;
+                    } else {
+                        speechLikeHits = Math.max(0, speechLikeHits - 1);
+                    }
+
+                    lastVolume = volume;
+
+                    int finalVolume = volume;
+                    int finalVariation = variation;
+                    int finalHits = speechLikeHits;
+                    int finalBaseline = rollingBaseline;
+
                     runOnUiThread(() ->
-                            statusText.setText("Monitoring microphone...\n\nVolume: " + volume)
+                            statusText.setText(
+                                    "Monitoring...\n\n" +
+                                            "Volume: " + finalVolume + "\n" +
+                                            "Baseline: " + finalBaseline + "\n" +
+                                            "Variation: " + finalVariation + "\n" +
+                                            "Speech hits: " + finalHits + " / " + REQUIRED_HITS
+                            )
                     );
 
                     long now = System.currentTimeMillis();
 
-                    if (volume > VOLUME_TRIGGER && now - lastAlertTime > 10000) {
+                    if (speechLikeHits >= REQUIRED_HITS &&
+                            now - lastAlertTime > ALERT_COOLDOWN_MS) {
+
                         lastAlertTime = now;
+                        speechLikeHits = 0;
 
                         runOnUiThread(() -> {
                             showAlertNotification();
-                            statusText.setText("Possible human/sound detected.\n\nVolume: " + volume);
+                            statusText.setText(
+                                    "Possible speech detected.\n\nCheck your call."
+                            );
                         });
                     }
                 }
@@ -224,11 +274,11 @@ public class MainActivity extends Activity {
     private void showAlertNotification() {
         Notification notification =
                 new Notification.Builder(this, CHANNEL_ID)
-                        .setContentTitle("Possible human detected")
+                        .setContentTitle("Possible speech detected")
                         .setContentText("Check your call now.")
                         .setStyle(
                                 new Notification.BigTextStyle()
-                                        .bigText("Possible human voice or loud sound detected.\n\nCheck your call now.")
+                                        .bigText("Possible speech-like audio detected.\n\nCheck your call now.")
                         )
                         .setSmallIcon(android.R.drawable.ic_dialog_alert)
                         .setAutoCancel(true)
