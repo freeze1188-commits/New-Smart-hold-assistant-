@@ -8,6 +8,7 @@ import android.app.NotificationManager;
 import android.content.pm.PackageManager;
 import android.media.AudioAttributes;
 import android.media.AudioFormat;
+import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.MediaPlayer;
 import android.media.MediaRecorder;
@@ -45,11 +46,14 @@ public class MainActivity extends Activity {
     private String responseFilePath;
     private boolean isRecordingResponse = false;
 
+    private AudioManager audioManager;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        responseFilePath = new File(getFilesDir(), "quick_response.3gp").getAbsolutePath();
+        audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
+        responseFilePath = new File(getFilesDir(), "quick_response.m4a").getAbsolutePath();
 
         createNotificationChannel();
 
@@ -76,6 +80,22 @@ public class MainActivity extends Activity {
         Button playButton = new Button(this);
         playButton.setText("Play Response");
         playButton.setOnClickListener(v -> playResponse());
+
+        Button lowerCallButton = new Button(this);
+        lowerCallButton.setText("Lower Call Volume");
+        lowerCallButton.setOnClickListener(v -> adjustVolume(AudioManager.STREAM_VOICE_CALL, -1));
+
+        Button raiseCallButton = new Button(this);
+        raiseCallButton.setText("Raise Call Volume");
+        raiseCallButton.setOnClickListener(v -> adjustVolume(AudioManager.STREAM_VOICE_CALL, 1));
+
+        Button lowerMediaButton = new Button(this);
+        lowerMediaButton.setText("Lower Media Volume");
+        lowerMediaButton.setOnClickListener(v -> adjustVolume(AudioManager.STREAM_MUSIC, -1));
+
+        Button raiseMediaButton = new Button(this);
+        raiseMediaButton.setText("Raise Media Volume");
+        raiseMediaButton.setOnClickListener(v -> adjustVolume(AudioManager.STREAM_MUSIC, 1));
 
         Button startButton = new Button(this);
         startButton.setText("Start Smart Hold");
@@ -104,10 +124,37 @@ public class MainActivity extends Activity {
         layout.addView(recordButton);
         layout.addView(stopRecordButton);
         layout.addView(playButton);
+        layout.addView(lowerCallButton);
+        layout.addView(raiseCallButton);
+        layout.addView(lowerMediaButton);
+        layout.addView(raiseMediaButton);
         layout.addView(startButton);
         layout.addView(stopButton);
 
         setContentView(layout);
+    }
+
+    private void adjustVolume(int streamType, int direction) {
+        try {
+            int current = audioManager.getStreamVolume(streamType);
+            int max = audioManager.getStreamMaxVolume(streamType);
+
+            int next = current + direction;
+            if (next < 0) next = 0;
+            if (next > max) next = max;
+
+            audioManager.setStreamVolume(streamType, next, AudioManager.FLAG_SHOW_UI);
+
+            String streamName =
+                    streamType == AudioManager.STREAM_VOICE_CALL
+                            ? "Call volume"
+                            : "Media volume";
+
+            statusText.setText(streamName + ": " + next + " / " + max);
+
+        } catch (Exception e) {
+            statusText.setText("Volume change failed:\n" + e.getMessage());
+        }
     }
 
     private boolean hasMicPermission() {
@@ -168,14 +215,16 @@ public class MainActivity extends Activity {
 
             responseRecorder = new MediaRecorder();
             responseRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-            responseRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
-            responseRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
+            responseRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
+            responseRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+            responseRecorder.setAudioEncodingBitRate(128000);
+            responseRecorder.setAudioSamplingRate(44100);
             responseRecorder.setOutputFile(responseFilePath);
             responseRecorder.prepare();
             responseRecorder.start();
 
             isRecordingResponse = true;
-            statusText.setText("Recording response...\n\nSay: Hi, I’m here, one moment please.");
+            statusText.setText("Recording response...\n\nSpeak clearly near the phone.");
 
         } catch (Exception e) {
             isRecordingResponse = false;
@@ -195,7 +244,8 @@ public class MainActivity extends Activity {
             responseRecorder = null;
             isRecordingResponse = false;
 
-            statusText.setText("Response saved.\n\nTap Play Response to test it.");
+            File file = new File(responseFilePath);
+            statusText.setText("Response saved.\n\nFile size: " + file.length() + " bytes\n\nTap Play Response.");
 
         } catch (Exception e) {
             isRecordingResponse = false;
@@ -215,17 +265,23 @@ public class MainActivity extends Activity {
         }
 
         try {
+            audioManager.setMode(AudioManager.MODE_NORMAL);
+            audioManager.setSpeakerphoneOn(true);
+
             if (responsePlayer != null) {
                 responsePlayer.release();
                 responsePlayer = null;
             }
 
             responsePlayer = new MediaPlayer();
+            responsePlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
             responsePlayer.setDataSource(responseFilePath);
+            responsePlayer.setVolume(1.0f, 1.0f);
             responsePlayer.prepare();
             responsePlayer.start();
 
-            statusText.setText("Playing response...");
+            File file = new File(responseFilePath);
+            statusText.setText("Playing response...\n\nFile size: " + file.length() + " bytes");
 
         } catch (Exception e) {
             statusText.setText("Playback failed:\n" + e.getMessage());
